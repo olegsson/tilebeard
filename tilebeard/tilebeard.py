@@ -1,8 +1,12 @@
 import os
 import gzip
 import re
+from glob import iglob
 from collections import OrderedDict
-from urllib.request import urlopen
+try:
+    from urllib.request import urlopen
+except ImportError:
+    from urllib import urlopen
 
 MIMETYPES = OrderedDict({
     'png': 'image/png',
@@ -10,8 +14,13 @@ MIMETYPES = OrderedDict({
     'jpeg': 'image/jpeg',
     'json': 'application/json',
     'tif': 'image/tiff',
-    '': 'text/plain'
+    '': 'text/plain',
 })
+
+BLANK = (
+    {'Content-Type': 'application/octet-stream'},
+    b'',
+)
 
 class Tile:
     '''
@@ -23,11 +32,14 @@ class Tile:
         self.ext = path.split('.')[-1].lower()
         self.file = path
         for ext in MIMETYPES.keys():
-            if ext in self.ext:
-                self.headers = {
-                    'Content-Type': MIMETYPES[ext]
-                }
-                break
+            try:
+                if ext in self.ext:
+                    self.headers = {
+                        'Content-Type': MIMETYPES[ext]
+                    }
+                    break
+            except TypeError:
+                pass
 
         self.respond = self.makerespond(compresslevel)
 
@@ -55,12 +67,9 @@ class Tile:
 
         return respond
 
-    async def __call__(self):
-        try:
-            with open(self.file, 'rb') as file:
-                return self.respond(file.read())
-        except FileNotFoundError:
-            return self.respond(b'')
+    def __call__(self):
+        with open(self.file, 'rb') as file:
+            return self.respond(file.read())
 
 class ProxyTile(Tile):
     '''
@@ -92,13 +101,12 @@ class ProxyTile(Tile):
                     return content
         return proxypass
 
-    async def __call__(self):
+    def __call__(self):
         return self.respond(self.proxypass())
 
 class TileBeard:
     '''
     The adapter for serving a set of tiles. Is bound to dir and/or url.
-    Evaluates individual tiles as they are requested.
     '''
 
     __beard = {}
@@ -108,21 +116,24 @@ class TileBeard:
         self.url = url
         self.template = template
         self.compresslevel = compresslevel
+        if url is None and path is not None:
+            stars = '*' * template.count('{}')
+            for file in iglob(path+template.format(*stars)):
+                self.__beard[re.sub(path, '', file)] = Tile(file, self.compresslevel)
 
-    async def __call__(self, key):
+    def __call__(self, key):
         if type(key) in (tuple, list):
             key = self.template.format(*key)
-        try:
-            return await self.__beard[key]()
-        except KeyError:
-            path = None
-            url = None
-            if self.path is not None:
-                path = self.path + key
-            if self.url is not None:
+        if key in self.__beard:
+            return self.__beard[key]()
+        else:
+            if self.url is None:
+                return BLANK
+            else:
+                path = None
+                if self.path is not None:
+                    path = self.path + key
                 url = self.url + key
                 tile = ProxyTile(url, path, self.compresslevel)
-            else:
-                tile = Tile(path, self.compresslevel)
-            self.__beard[key] = tile
-            return await tile()
+                self.__beard[key] = tile
+                return tile()
