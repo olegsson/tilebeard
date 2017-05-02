@@ -26,19 +26,23 @@ tb = TileBeard(
   path='/path/to/cache/tiles/to'
 )
 ```
-### or in Python 3.5+
-```
-from tilebeard import AIOBeard
-
-tb = AIOBeard(*args, **kwargs)
-```
-The `AIOBeard` class works the same as `TileBeard` except it's `__call__` method is a coroutine to be used with event loop of choice.
 
 ### getting tiles
 ```
 headers, content = tb(arg)
 ```
 `arg` can be tuple of parameters or path, conforming to template format (look below)
+
+### or in Python 3.5+
+```
+from tilebeard import AIOBeard
+
+tb = AIOBeard(*args, **kwargs)
+```
+The `AIOBeard` class works the same as `TileBeard` except it's `__call__` method is a coroutine to be used with event loop of choice, as in:
+```
+  headers, content = await tb(arg)
+```
 
 ### additional `__init__` arguments
 `template` (defaults to `'/{}/{}/{}.png'`) indicates call format, used to build dictionary of tiles
