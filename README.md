@@ -8,6 +8,6 @@ Largely inspired by [TileStache](https://github.com/TileStache/TileStache)
 
 Coming soon.
 
-## licence
+## license
 
 [MIT](https://opensource.org/licenses/MIT)

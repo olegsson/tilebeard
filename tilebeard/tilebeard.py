@@ -56,8 +56,11 @@ class Tile:
         return respond
 
     def __call__(self):
-        with open(self.file, 'rb') as file:
-            return self.respond(file.read())
+        try:
+            with open(self.file, 'rb') as file:
+                return self.respond(file.read())
+        except FileNotFoundError:
+            return self.respond(b'')
 
 class ProxyTile(Tile):
     '''
