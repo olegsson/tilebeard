@@ -55,7 +55,7 @@ class Tile:
 
         return respond
 
-    def __call__(self):
+    async def __call__(self):
         try:
             with open(self.file, 'rb') as file:
                 return self.respond(file.read())
@@ -92,7 +92,7 @@ class ProxyTile(Tile):
                     return content
         return proxypass
 
-    def __call__(self):
+    async def __call__(self):
         return self.respond(self.proxypass())
 
 class TileBeard:
@@ -109,11 +109,11 @@ class TileBeard:
         self.template = template
         self.compresslevel = compresslevel
 
-    def __call__(self, key):
+    async def __call__(self, key):
         if type(key) in (tuple, list):
             key = self.template.format(*key)
         try:
-            return self.__beard[key]()
+            return await self.__beard[key]()
         except KeyError:
             path = None
             url = None
@@ -125,4 +125,4 @@ class TileBeard:
             else:
                 tile = Tile(path, self.compresslevel)
             self.__beard[key] = tile
-            return tile()
+            return await tile()
