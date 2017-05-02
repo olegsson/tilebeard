@@ -1,0 +1,4 @@
+/tilebeard/__pycache__/
+/dist/
+*.pyc
+/*.egg-info
