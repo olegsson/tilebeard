@@ -90,7 +90,8 @@ class ProxyTile(Tile):
             def proxypass():
                 try:
                     with open(self.file, 'rb') as file:
-                        return file.read()
+                        content = file.read()
+                    return content
                 except FileNotFoundError:
                     content = urlopen(self.url).read()
                     dir = os.path.dirname(self.file)
