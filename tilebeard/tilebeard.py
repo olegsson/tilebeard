@@ -144,16 +144,16 @@ class TileBeard:
         self.template = template
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self.compresslevel = compresslevel
-        self.loop = asyncio.get_event_loop()
+        self.session = None
         if url is None:
             if path is not None:
                 stars = '*' * template.count('{}')
                 for file in iglob(path+template.format(*stars)):
                     self.__beard[re.sub(path, '', file)] = Tile(file, self.executor, self.compresslevel)
-        else:
-            self.session = ClientSession()
 
     async def __call__(self, key):
+        if self.session is None and self.url is not None:
+            self.session = ClientSession()
         if type(key) in (tuple, list):
             key = self.template.format(*key)
         if key in self.__beard:
