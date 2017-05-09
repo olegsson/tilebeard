@@ -8,6 +8,11 @@ Largely inspired by [TileStache](https://github.com/TileStache/TileStache)
 
 `git clone` and `python setup.py install`
 
+#### requirements
+
+Python 3.5+
+aiohttp (for async requests in proxy mode)
+
 ## usage
 
 ```
@@ -33,19 +38,10 @@ headers, content = tb(arg)
 ```
 `arg` can be tuple of parameters or path, conforming to template format (look below)
 
-### or in Python 3.5+
-```
-from tilebeard import AIOBeard
-
-tb = AIOBeard(*args, **kwargs)
-```
-The `AIOBeard` class works the same as `TileBeard` except it's `__call__` method is a coroutine to be used with event loop of choice, as in:
-```
-  headers, content = await tb(arg)
-```
-
 ### additional `__init__` arguments
 `template` (defaults to `'/{}/{}/{}.png'`) indicates call format, used to build dictionary of tiles
+
+`max_workers` (defaults to `2`) passed to `concurrent.futures.ThreadPoolExecutor` for async file read
 
 `compresslevel` (defaults to `0`) passed to gzip for response compression if needed
 
