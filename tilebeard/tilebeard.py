@@ -41,11 +41,11 @@ class Tile:
     Stores filepath and headers, returns them on __call__.
     '''
 
-    def __init__(self, path, loop, executor, compresslevel=0):
+    def __init__(self, path, executor, compresslevel=0):
         self.ext = path.split('.')[-1].lower()
         self.file = path
         self.executor = executor
-        self.loop = loop # asyncio.get_event_loop()
+        self.loop = None
         for ext in MIMETYPES.keys():
             try:
                 if ext in self.ext:
@@ -59,6 +59,8 @@ class Tile:
         self.respond = self.makerespond(compresslevel)
 
     async def read(self):
+        if self.loop is None:
+            self.loop = asyncio.get_event_loop()
         return await aioread(self.file, self.loop, self.executor)
 
     def makerespond(self, compresslevel):
@@ -94,15 +96,15 @@ class ProxyTile(Tile):
     Extends Tile class to handle remote tile urls and cache content locally.
     '''
 
-    def __init__(self, url, session, loop, executor, path=None, compresslevel=0):
-        super(ProxyTile, self).__init__(path, loop, executor, compresslevel)
+    def __init__(self, url, session, executor, path=None, compresslevel=0):
+        super(ProxyTile, self).__init__(path, executor, compresslevel)
         self.url = url
         self.session = session
-        self.executor = executor
-        self.loop = asyncio.get_event_loop()
         self.proxypass = self.makepass()
 
     async def write(self, content):
+        if self.loop is None:
+            self.loop = asyncio.get_event_loop()
         await aiowrite(self.file, content, self.loop, self.executor)
 
     def makepass(self):
@@ -136,7 +138,7 @@ class TileBeard:
 
     __beard = {}
 
-    def __init__(self, path=None, url=None, template='/{}/{}/{}.png', max_workers=10, compresslevel=0):
+    def __init__(self, path=None, url=None, template='/{}/{}/{}.png', max_workers=2, compresslevel=0):
         self.path = path
         self.url = url
         self.template = template
@@ -147,7 +149,7 @@ class TileBeard:
             if path is not None:
                 stars = '*' * template.count('{}')
                 for file in iglob(path+template.format(*stars)):
-                    self.__beard[re.sub(path, '', file)] = Tile(file, self.loop, self.executor, self.compresslevel)
+                    self.__beard[re.sub(path, '', file)] = Tile(file, self.executor, self.compresslevel)
         else:
             self.session = ClientSession()
 
@@ -164,6 +166,6 @@ class TileBeard:
                 if self.path is not None:
                     path = self.path + key
                 url = self.url + key
-                tile = ProxyTile(url, self.session, self.loop, self.executor, path, self.compresslevel)
+                tile = ProxyTile(url, self.session, self.executor, path, self.compresslevel)
                 self.__beard[key] = tile
                 return await tile()
