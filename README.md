@@ -43,6 +43,8 @@ The `AIOBeard` class works the same as `TileBeard` except it's `__call__` method
 ```
   headers, content = await tb(arg)
 ```
+This, however doesn't do a whole lot since the file open and read calls, aswell as urlopen, are still sync.
+
 
 ### additional `__init__` arguments
 `template` (defaults to `'/{}/{}/{}.png'`) indicates call format, used to build dictionary of tiles
