@@ -19,7 +19,7 @@ MIMETYPES = OrderedDict({
 NOTFOUND = (
     404,
     {'Content-Type': 'text/plain'},
-    'not found',
+    b'not found',
 )
 
 def __readfile(path):
@@ -104,6 +104,9 @@ class ProxyTile(Tile):
     async def write(self, content):
         if self.loop is None:
             self.loop = asyncio.get_event_loop()
+        dir = os.path.dirname(self.file)
+        if not os.path.isdir(dir):
+            os.makedirs(dir)
         await aiowrite(self.file, content, self.loop, self.executor)
 
     def makepass(self):
@@ -121,10 +124,7 @@ class ProxyTile(Tile):
                 except FileNotFoundError:
                     async with self.session.get(self.url) as response:
                         content = await response.read()
-                    dir = os.path.dirname(self.file)
-                    if not os.path.isdir(dir):
-                        os.makedirs(dir)
-                    await self.write(content)
+                    asyncio.ensure_future(self.write(content))
                     return content
         return proxypass
 
