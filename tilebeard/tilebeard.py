@@ -16,9 +16,10 @@ MIMETYPES = OrderedDict({
     '': 'text/plain',
 })
 
-BLANK = (
-    {'Content-Type': 'application/octet-stream'},
-    b'',
+NOTFOUND = (
+    404,
+    {'Content-Type': 'text/plain'},
+    'not found',
 )
 
 def __readfile(path):
@@ -41,10 +42,9 @@ class Tile:
     Stores filepath and headers, returns them on __call__.
     '''
 
-    def __init__(self, path, executor, compresslevel=0):
-        self.ext = path.split('.')[-1].lower()
-        self.file = path
-        self.executor = executor
+    def __init__(self, *args):
+        self.file, self.executor, compresslevel, *rest = args
+        self.ext = self.file.split('.')[-1].lower()
         self.loop = None
         for ext in MIMETYPES.keys():
             try:
@@ -80,10 +80,10 @@ class Tile:
                     self.headers.update({
                         'Content-Length': len(content)
                     })
-                return self.headers, content
+                return 200, self.headers, content
         else:
             def respond(content):
-                return self.headers, content
+                return 200, self.headers, content
 
         return respond
 
@@ -96,10 +96,9 @@ class ProxyTile(Tile):
     Extends Tile class to handle remote tile urls and cache content locally.
     '''
 
-    def __init__(self, url, session, executor, path=None, compresslevel=0):
+    def __init__(self, *args):
+        path, executor, compresslevel, self.url, self.session, *rest = args
         super(ProxyTile, self).__init__(path, executor, compresslevel)
-        self.url = url
-        self.session = session
         self.proxypass = self.makepass()
 
     async def write(self, content):
@@ -111,6 +110,8 @@ class ProxyTile(Tile):
         if self.file is None:
             async def proxypass():
                 async with self.session.get(self.url) as response:
+                    if response.status == 404:
+                        raise FileNotFoundError
                     return await response.read()
         else:
             async def proxypass():
@@ -131,6 +132,15 @@ class ProxyTile(Tile):
         content = await self.proxypass()
         return self.respond(content)
 
+def get_tile_type(path, url):
+    types = {
+        (False, True): Tile,
+        (False, False): ProxyTile,
+        (True, False): ProxyTile,
+    }
+    key = (not path, not url)
+    return types[key]
+
 class TileBeard:
     '''
     The adapter for serving a set of tiles. Is bound to dir and/or url.
@@ -138,18 +148,23 @@ class TileBeard:
 
     __beard = {}
 
-    def __init__(self, path=None, url=None, template='/{}/{}/{}.png', max_workers=2, compresslevel=0):
+    def __init__(self, path='', url='', template='/{}/{}/{}.png', max_workers=2, compresslevel=0):
+        assert not (path is None and url is None)
         self.path = path
         self.url = url
         self.template = template
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self.compresslevel = compresslevel
         self.session = None
-        if url is None:
-            if path is not None:
-                stars = '*' * template.count('{}')
-                for file in iglob(path+template.format(*stars)):
-                    self.__beard[re.sub(path, '', file)] = Tile(file, self.executor, self.compresslevel)
+        self.type = get_tile_type(path, url)
+        if path is not None:
+            stars = '*' * template.count('{}')
+            globstring = path + template.format(*stars)
+            def count(self):
+                c = 0
+                for file in iglob(globstring):
+                    c += 1
+                return count
 
     async def __call__(self, key):
         if self.session is None and self.url is not None:
@@ -159,13 +174,10 @@ class TileBeard:
         if key in self.__beard:
             return await self.__beard[key]()
         else:
-            if self.url is None:
-                return BLANK
-            else:
-                path = None
-                if self.path is not None:
-                    path = self.path + key
-                url = self.url + key
-                tile = ProxyTile(url, self.session, self.executor, path, self.compresslevel)
-                self.__beard[key] = tile
-                return await tile()
+            try:
+                tile = self.type(self.path+key, self.executor, self.compresslevel, self.url+key, self.session)
+                response = await tile()
+            except FileNotFoundError:
+                return NOTFOUND
+            self.__beard[key] = tile
+            return response
