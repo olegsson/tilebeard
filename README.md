@@ -35,7 +35,7 @@ tb = TileBeard(
 
 ### getting tiles
 ```
-headers, content = tb(arg)
+status_code, headers, content = tb(arg)
 ```
 `arg` can be tuple of parameters or path, conforming to template format (look below)
 
