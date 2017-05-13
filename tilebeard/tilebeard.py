@@ -6,6 +6,7 @@ from collections import OrderedDict
 import asyncio
 from aiohttp import ClientSession
 from concurrent.futures import ThreadPoolExecutor
+from wsgiref.handlers import format_date_time
 
 MIMETYPES = OrderedDict({
     'png': 'image/png',
@@ -36,6 +37,13 @@ async def aioread(path, loop, executor):
 async def aiowrite(path, content, loop, executor):
     await loop.run_in_executor(executor, __writefile, path, content)
 
+def get_lastmod_etag(file):
+    timestamp = os.path.getmtime(file)
+    return (
+        format_date_time(timestamp),
+        str(round(100 * (timestamp % (3600 * 48)))) + ''.join(file.split(os.path.sep)[-3:])
+    )
+
 class Tile:
     '''
     Callable class for handling individual tiles.
@@ -50,7 +58,8 @@ class Tile:
             try:
                 if ext in self.ext:
                     self.headers = {
-                        'Content-Type': MIMETYPES[ext]
+                        'Content-Type': MIMETYPES[ext],
+                        'Cache-Control': 'public,max-age=600',
                     }
                     break
             except TypeError:
@@ -61,6 +70,11 @@ class Tile:
     async def read(self):
         if self.loop is None:
             self.loop = asyncio.get_event_loop()
+        lastmod, etag = get_lastmod_etag(self.file)
+        self.headers.update({
+            'Last-Modified': lastmod,
+            'ETag': etag
+        })
         return await aioread(self.file, self.loop, self.executor)
 
     def makerespond(self, compresslevel):
