@@ -1,6 +1,6 @@
 # tilebeard
 
-Attempt at a minimal WMTS adapter for python 3.5+ async networking frameworks, for use with tiles pre-rendered with tools like [gdal2tiles.py](http://www.gdal.org/gdal2tiles.html), or as a proxy to an existing WMTS with optional local caching. Hosted here for convenience and potentially some feedback. This package is a work in progress an experiment at several things, proceed at own risk.
+Attempt at a minimal WMTS adapter for python 3.5+ async networking frameworks, for use with tiles pre-rendered with tools like [gdal2tiles.py](http://www.gdal.org/gdal2tiles.html), or as a proxy to an existing WMTS with optional local caching. Hosted here for convenience and potentially some feedback. This package is a work in progress and an experiment at several things, proceed at own risk.
 
 Largely inspired by [TileStache](https://github.com/TileStache/TileStache)
 
