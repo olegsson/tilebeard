@@ -38,7 +38,8 @@ tiles = TileBeard(
 status_code, headers, content = await tiles(key, [request_headers])
 ```
 `key` can be tuple of parameters (eg. z, x, y) or path, conforming to template format (see below)
-if `request_headers` are passed to the call, tilebeard returns `304 Not Modified` response when appropriate
+
+if `request_headers` (dict) is passed to the call, tilebeard returns `304 Not Modified` response when appropriate
 
 ### additional `__init__` arguments
 `template` (defaults to `'/{}/{}/{}.png'`) indicates call format, used to build dictionary of tiles
