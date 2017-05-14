@@ -10,5 +10,9 @@ setup(
     author_email = 'luka.olegsson@gmail.com',
     license = 'MIT',
     packages = ['tilebeard'],
-    zip_safe = False
+    zip_safe = True,
+    classifiers = [
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+    ]
 )

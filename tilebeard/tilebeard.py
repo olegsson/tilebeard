@@ -17,10 +17,16 @@ MIMETYPES = OrderedDict({
     '': 'text/plain',
 })
 
-NOTFOUND = (
+NOT_FOUND = (
     404,
     {'Content-Type': 'text/plain'},
     b'not found',
+)
+
+NOT_MODIFIED = (
+    304,
+    {'Content-Type': 'text/plain'},
+    b'not modified',
 )
 
 def __readfile(path):
@@ -59,22 +65,27 @@ class Tile:
                 if ext in self.ext:
                     self.headers = {
                         'Content-Type': MIMETYPES[ext],
-                        'Cache-Control': 'public,max-age=600',
+                        'Cache-Control': 'public',
                     }
                     break
             except TypeError:
                 pass
 
         self.respond = self.makerespond(compresslevel)
+        if self.file is not None:
+            self.modified()
 
-    async def read(self):
-        if self.loop is None:
-            self.loop = asyncio.get_event_loop()
+    def modified(self):
         lastmod, etag = get_lastmod_etag(self.file)
         self.headers.update({
             'Last-Modified': lastmod,
             'ETag': etag
         })
+        return lastmod, etag
+
+    async def read(self):
+        if self.loop is None:
+            self.loop = asyncio.get_event_loop()
         return await aioread(self.file, self.loop, self.executor)
 
     def makerespond(self, compresslevel):
@@ -180,18 +191,29 @@ class TileBeard:
                     c += 1
                 return count
 
-    async def __call__(self, key):
+    async def __call__(self, key, request_headers={}):
         if self.session is None and self.url is not None:
             self.session = ClientSession()
         if type(key) in (tuple, list):
             key = self.template.format(*key)
-        if key in self.__beard:
-            return await self.__beard[key]()
-        else:
-            try:
+
+        try:
+            if key in self.__beard:
+                tile = self.__beard[key]
+            else:
                 tile = self.type(self.path+key, self.executor, self.compresslevel, self.url+key, self.session)
-                response = await tile()
-            except FileNotFoundError:
-                return NOTFOUND
-            self.__beard[key] = tile
-            return response
+
+            check_headers = [key for key in ('If-Modified-Since', 'If-None-Match') if key in request_headers]
+            if check_headers != []:
+                checkvals = tile.modified()
+                checks = [
+                    request_headers[key] == checkvals[i] for i, key in enumerate(check_headers)
+                ]
+                if sum(checks) == len(checks):
+                    return NOT_MODIFIED
+
+            response = await tile()
+        except FileNotFoundError:
+            return NOT_FOUND
+        self.__beard[key] = tile
+        return response
