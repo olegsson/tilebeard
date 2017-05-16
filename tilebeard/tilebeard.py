@@ -7,6 +7,11 @@ import asyncio
 from aiohttp import ClientSession
 from concurrent.futures import ThreadPoolExecutor
 from wsgiref.handlers import format_date_time
+from .filters import *
+
+_filters = {
+    'invert': invert
+}
 
 MIMETYPES = OrderedDict({
     'png': 'image/png',
@@ -191,7 +196,7 @@ class TileBeard:
                     c += 1
                 return count
 
-    async def __call__(self, key, request_headers={}):
+    async def __call__(self, key, request_headers={}, filter=None):
         if self.session is None and self.url is not None:
             self.session = ClientSession()
         if type(key) in (tuple, list):
@@ -216,4 +221,6 @@ class TileBeard:
         except FileNotFoundError:
             return NOT_FOUND
         self.__beard[key] = tile
+        if filter is not None:
+            response = (*response[:2], _filters[filter](response[-1]))
         return response
