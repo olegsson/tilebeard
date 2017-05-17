@@ -19,8 +19,3 @@ def _apply2bytes(filter_func):
 @_apply2bytes
 def invert(img):
     return image_ops.invert(img)
-
-file = '/code/gekom/bora2/web/geotmp/tiles/201705111800/CLFLO/10/545/636.png'
-
-with open(file, 'rb') as f:
-    b = f.read()
