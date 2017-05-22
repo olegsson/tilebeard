@@ -72,6 +72,13 @@ class Tile:
         loop = asyncio.get_event_loop()
         return await aioread(self.file, loop, self.executor)
 
+    async def write(self, content): # not used in base class, put here for subclasses
+        loop = asyncio.get_event_loop()
+        dir = os.path.dirname(self.file)
+        if not os.path.isdir(dir):
+            os.makedirs(dir)
+        await aiowrite(self.file, content, loop, self.executor)
+
     def makerespond(self, compresslevel):
         if 0 < compresslevel < 10:
             self.headers.update({
@@ -110,13 +117,6 @@ class ProxyTile(Tile):
         super(ProxyTile, self).__init__(path, executor, compresslevel)
         self.proxypass = self.makepass()
 
-    async def write(self, content):
-        loop = asyncio.get_event_loop()
-        dir = os.path.dirname(self.file)
-        if not os.path.isdir(dir):
-            os.makedirs(dir)
-        await aiowrite(self.file, content, loop, self.executor)
-
     def makepass(self):
         if self.file is None:
             async def proxypass():
@@ -148,3 +148,23 @@ class LazyTile(Tile):
     def __init__(self, *args):
         path, executor, compresslevel, url, session, self.source = args
         super(LazyTile, self).__init__(path, executor, compresslevel)
+        self.lazypass = self.makepass()
+
+    def makepass(self):
+        if self.file is None:
+            async def lazypass():
+                return await self.source()
+        else:
+            async def lazypass():
+                try:
+                    content = await self.read()
+                    return content
+                except FileNotFoundError:
+                    content = await self.source()
+                    asyncio.ensure_future(self.write(content))
+                    return content
+        return lazypass
+
+    async def __call__(self):
+        content = await self.lazypass()
+        return self.respond(content)

@@ -1,10 +1,8 @@
-# from osgeo import gdal
-# from shapely.geometry import box
-# from scipy import misc
 from sys import getsizeof
 import math
 from PIL import Image
 import asyncio
+from io import BytesIO
 
 class ObjDict(dict):
 
@@ -104,4 +102,7 @@ class ImageSource:
 
     async def __call__(self, z, x, y):
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(self.executor, self.get_tile, z, x, y)
+        response = BytesIO()
+        tile = await loop.run_in_executor(self.executor, self.get_tile, z, x, y)
+        tile.save(response, format='PNG')
+        return response.getvalue()

@@ -41,7 +41,7 @@ class TileBeard:
     '''
 
     def __init__(self, path='', url='', source='', template='/{}/{}/{}.png', max_workers=2, compresslevel=0):
-        assert not (path is None and url is None)
+        assert not (path is None and url is None and source is None)
         self.path = path
         self.url = url
         self.template = template
@@ -65,7 +65,11 @@ class TileBeard:
         if self.session is None and self.url is not None:
             self.session = ClientSession()
         if type(key) in (tuple, list):
+            async def source():
+                return await self.source(key)
             key = self.template.format(*key)
+        elif self.type is LazyTile:
+            raise ValueError('LazyTile call requires tuple (z, x, y)')
 
         try:
             with self.type(
@@ -74,7 +78,7 @@ class TileBeard:
                 self.compresslevel,
                 self.url+key,
                 self.session,
-                self.source,
+                source,
             ) as tile:
 
                 check_headers = [key for key in ('If-Modified-Since', 'If-None-Match') if key in request_headers]
