@@ -87,7 +87,6 @@ class Tile:
 
         return respond
 
-
 class FileTile(Tile):
     '''
     Extends Tile class to a callable object that calls self.modified on init.
@@ -151,6 +150,7 @@ class LazyTile(Tile):
     def __init__(self, *args):
         path, executor, compresslevel, *rest, self.source, self.key = args
         super(LazyTile, self).__init__(path, executor, compresslevel)
+        self.key = tuple(int(x) for x in self.key)
         self.headers = get_headers(self.source.file)
         self.lazypass = self.makepass()
         self.modified()
@@ -166,14 +166,14 @@ class LazyTile(Tile):
     def makepass(self):
         if self.file is None:
             async def lazypass():
-                return await self.source(self.key)
+                return await self.source(*self.key)
         else:
             async def lazypass():
                 try:
                     content = await self.read()
                     return content
                 except FileNotFoundError:
-                    content = await self.source(self.key)
+                    content = await self.source(*self.key)
                     asyncio.ensure_future(self.write(content))
                     return content
         return lazypass

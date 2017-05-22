@@ -26,7 +26,7 @@ NOT_MODIFIED = (
 
 def get_tile_type(path, url, source): # graceful as a drunk bear...
     types = {
-        (False, True, True): Tile,
+        (False, True, True): FileTile,
         (False, False, True): ProxyTile,
         (True, False, True): ProxyTile,
         (False, True, False): LazyTile,
@@ -51,8 +51,8 @@ class TileBeard:
         else:
             self.executor = executor
         if sourcefile:
-            self.source = ImageSource(source, self.executor)
-            self.format = string.split('.')[-1].lower()
+            self.source = ImageSource(sourcefile, self.executor)
+            self.format = sourcefile.split('.')[-1].lower()
         else:
             self.source = None
             self.format = frmt
@@ -73,10 +73,10 @@ class TileBeard:
         if self.session is None and self.url is not None:
             self.session = ClientSession()
         path = self.path + self.template.format(*key)
-        url = self.path + self.template.format(*key)
+        url = self.url + self.template.format(*key)
 
         try:
-            with self.tile(
+            tile = self.tile(
                 path,
                 self.executor,
                 self.compresslevel,
@@ -84,26 +84,26 @@ class TileBeard:
                 self.session,
                 self.source,
                 key,
-            ) as tile:
+            )
 
-                check_headers = [
-                    key for key in ('If-Modified-Since', 'If-None-Match') if key in request_headers
+            check_headers = [
+                key for key in ('If-Modified-Since', 'If-None-Match') if key in request_headers
+            ]
+
+            if check_headers != []:
+                checkvals = tile.modified() # NOTE: make this support ProxyTile
+                checks = [
+                    request_headers[key] == checkvals[i] for i, key in enumerate(check_headers)
                 ]
+                if sum(checks) == len(checks):
+                    return NOT_MODIFIED
 
-                if check_headers != []:
-                    checkvals = tile.modified() # NOTE: make this support ProxyTile
-                    checks = [
-                        request_headers[key] == checkvals[i] for i, key in enumerate(check_headers)
-                    ]
-                    if sum(checks) == len(checks):
-                        return NOT_MODIFIED
+            response = await tile()
 
-                response = await tile()
+            if filter is not None:
+                response = (*response[:2], filter(response[-1]))
 
-                if filter is not None:
-                    response = (*response[:2], filter(response[-1]))
-
-                return response
+            return response
 
         except FileNotFoundError:
             return NOT_FOUND
