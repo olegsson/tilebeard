@@ -3,7 +3,8 @@ from glob import iglob
 import asyncio
 from aiohttp import ClientSession
 from concurrent.futures import ThreadPoolExecutor
-from .tile import Tile, ProxyTile
+from .tile import Tile, ProxyTile, LazyTile
+from .tilesource import ImageSource
 
 # NOTE: removing this, filters should be passed as functions for pluggability
 # from .filters import *
@@ -23,13 +24,15 @@ NOT_MODIFIED = (
     b'not modified',
 )
 
-def get_tile_type(path, url):
+def get_tile_type(path, url, source):
     types = {
-        (False, True): Tile,
-        (False, False): ProxyTile,
-        (True, False): ProxyTile,
+        (False, True, True): Tile,
+        (False, False, True): ProxyTile,
+        (True, False, True): ProxyTile,
+        (False, True, False): LazyTile,
+        (True, True, False): LazyTile,
     }
-    key = (not path, not url)
+    key = (not path, not url, not source)
     return types[key]
 
 class TileBeard:
@@ -37,12 +40,15 @@ class TileBeard:
     The adapter for serving a set of tiles. Is bound to dir and/or url.
     '''
 
-    def __init__(self, path='', url='', template='/{}/{}/{}.png', max_workers=2, compresslevel=0):
+    def __init__(self, path='', url='', source='', template='/{}/{}/{}.png', max_workers=2, compresslevel=0):
         assert not (path is None and url is None)
         self.path = path
         self.url = url
         self.template = template
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        self.source = None
+        if source:
+            self.source = ImageSource(source, self.executor)
         self.compresslevel = compresslevel
         self.session = None
         self.type = get_tile_type(path, url)
@@ -67,7 +73,8 @@ class TileBeard:
                 self.executor,
                 self.compresslevel,
                 self.url+key,
-                self.session
+                self.session,
+                self.source,
             ) as tile:
 
                 check_headers = [key for key in ('If-Modified-Since', 'If-None-Match') if key in request_headers]

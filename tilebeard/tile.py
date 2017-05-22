@@ -37,11 +37,10 @@ def get_lastmod_etag(file):
 class Tile:
     '''
     Callable class for handling individual tiles.
-    Stores filepath and headers, returns them on __call__.
     '''
 
     def __init__(self, *args):
-        self.file, self.executor, compresslevel, *rest = args
+        self.file, self.executor, compresslevel, url, *rest = args
         self.ext = self.file.split('.')[-1].lower()
         for ext in MIMETYPES.keys():
             try:
@@ -59,12 +58,15 @@ class Tile:
             self.modified()
 
     def modified(self):
-        lastmod, etag = get_lastmod_etag(self.file)
-        self.headers.update({
-            'Last-Modified': lastmod,
-            'ETag': etag
-        })
-        return lastmod, etag
+        try:
+            lastmod, etag = get_lastmod_etag(self.file)
+            self.headers.update({
+                'Last-Modified': lastmod,
+                'ETag': etag
+            })
+            return lastmod, etag
+        except FileNotFoundError: # temporary error handling for non-cached ProxyTile
+            return None, None
 
     async def read(self):
         loop = asyncio.get_event_loop()
@@ -137,3 +139,12 @@ class ProxyTile(Tile):
     async def __call__(self):
         content = await self.proxypass()
         return self.respond(content)
+
+class LazyTile(Tile):
+    '''
+    Extends Tile class to handle tiles generated on demand.
+    '''
+
+    def __init__(self, *args):
+        path, executor, compresslevel, url, session, self.source = args
+        super(LazyTile, self).__init__(path, executor, compresslevel)
