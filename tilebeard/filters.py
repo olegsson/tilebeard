@@ -2,8 +2,9 @@ from PIL import Image
 import PIL.ImageOps as image_ops
 from io import BytesIO
 
+#decorator for PIL operations for applying to bytes instead of Image objects
 def _apply2bytes(filter_func):
-    def _wrapped(bytes):
+    def wrapped(bytes):
         img = Image.open(BytesIO(bytes))
         if img.mode == 'RGBA':
             *rgb, a = img.split()
@@ -14,7 +15,7 @@ def _apply2bytes(filter_func):
         filtered_bytes = BytesIO()
         filtered_img.save(filtered_bytes, format='PNG')
         return filtered_bytes.getvalue()
-    return _wrapped
+    return wrapped
 
 @_apply2bytes
 def invert(img):

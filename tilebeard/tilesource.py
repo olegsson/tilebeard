@@ -4,6 +4,7 @@
 from sys import getsizeof
 import math
 from PIL import Image
+import asyncio
 
 class ObjDict(dict):
 
@@ -22,7 +23,7 @@ class ObjDict(dict):
         if kwargs != {}:
             self.__dict__.update(kwargs)
 
-def num2deg(xtile, ytile, zoom):
+def num2deg(zoom, xtile, ytile):
     '''
     osm xyz tilename to coordinates
     from http://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Python
@@ -33,12 +34,12 @@ def num2deg(xtile, ytile, zoom):
     lat_deg = math.degrees(lat_rad)
     return (lon_deg, lat_deg)
 
-def num2box(xtile, ytile, zoom):
+def num2box(zoom, xtile, ytile):
     '''
     tilename to bounding rectangle
     '''
-    xe, yn = num2deg(xtile, ytile, zoom)
-    xw, ys = num2deg(xtile+1, ytile+1, zoom)
+    xe, yn = num2deg(zoom, xtile, ytile)
+    xw, ys = num2deg(zoom, xtile+1, ytile+1)
     return (xe, ys, xw, yn)
 
 def box2pix(box, world):
@@ -74,34 +75,33 @@ def get_world_data(imagefile, imagesize):
     return ObjDict({
         'xres': xres,
         'yres': yres,
-        'width': w,
-        'height': h,
+        # 'width': w,
+        # 'height': h,
         'N': yn,
         'E': xe,
         'S': ys,
         'W': xw,
-        'box': (xe, ys, xw, yn),
+        # 'box': (xe, ys, xw, yn),
     })
 
-class TileSource:
+class ImageSource:
+    '''
+    Class for generating tiles on demand from image source.
+    '''
 
-    def __init__(self, imagefile, tilesize=(256, 256), resample=Image.BILINEAR):
+    def __init__(self, imagefile, executor, tilesize=(256, 256), resample=Image.BILINEAR):
         self.tilesize = tilesize
         self.resample = resample
-        self.image = Image.open(imagefile)
-        self.world = get_world_data(imagefile, self.image.size)
+        self.file = imagefile
+        self.executor = executor
 
-    def get_tile(self, x, y, z):
-        box = num2box(x, y, z)
-        bounds = box2pix(
-            box,
-            self.world
-        )
-        return self.image.crop(bounds).resize(self.tilesize, self.resample)
-#%%
+    def get_tile(self, z, x, y):
+        box = num2box(z, x, y)
+        with Image.open(self.file) as image:
+            world = get_world_data(self.file, image.size)
+            bounds = box2pix(box, world)
+            return image.crop(bounds).resize(self.tilesize, self.resample)
 
-# file = '/code/contrib/tilebeard/testing/T2.png'
-# outfile = '/code/contrib/tilebeard/testing/test.png'
-#
-# img = TileSource(file)
-# %timeit tile = img.get_tile(140, 90, 8)
+    async def __call__(self, z, x, y):
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(self.executor, self.get_tile, z, x, y)
