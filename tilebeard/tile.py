@@ -34,45 +34,29 @@ def get_lastmod_etag(file):
         str(round(100 * (timestamp % (3600 * 48)))) + ''.join(file.split(os.path.sep)[-3:])
     )
 
+def get_headers(string):
+    ext = string.split('.')[-1].lower()
+    for key in MIMETYPES.keys():
+        if key in ext:
+            return {
+                'Content-Type': MIMETYPES[ext],
+                'Cache-Control': 'public',
+            }
+
 class Tile:
     '''
-    Callable class for handling individual tiles.
+    Base class for tile handling.
     '''
 
     def __init__(self, *args):
-        self.file, self.executor, compresslevel, url, *rest = args
-        self.ext = self.file.split('.')[-1].lower()
-        for ext in MIMETYPES.keys():
-            try:
-                if ext in self.ext:
-                    self.headers = {
-                        'Content-Type': MIMETYPES[ext],
-                        'Cache-Control': 'public',
-                    }
-                    break
-            except TypeError:
-                pass
-
+        self.file, self.executor, compresslevel, *rest = args
         self.respond = self.makerespond(compresslevel)
-        if self.file is not None:
-            self.modified()
-
-    def modified(self):
-        try:
-            lastmod, etag = get_lastmod_etag(self.file)
-            self.headers.update({
-                'Last-Modified': lastmod,
-                'ETag': etag
-            })
-            return lastmod, etag
-        except FileNotFoundError: # temporary error handling for non-cached ProxyTile
-            return None, None
 
     async def read(self):
         loop = asyncio.get_event_loop()
         return await aioread(self.file, loop, self.executor)
 
-    async def write(self, content): # not used in base class, put here for subclasses
+    async def write(self, content):
         loop = asyncio.get_event_loop()
         dir = os.path.dirname(self.file)
         if not os.path.isdir(dir):
@@ -103,6 +87,24 @@ class Tile:
 
         return respond
 
+
+class FileTile(Tile):
+    '''
+    Extends Tile class to a callable object that calls self.modified on init.
+    '''
+    def __init__(self, *args):
+        super(FileTile, self).__init__(path, executor, compresslevel)
+        self.headers = get_headers(self.file)
+        self.modified()
+
+    def modified(self):
+        lastmod, etag = get_lastmod_etag(self.file)
+        self.headers.update({
+            'Last-Modified': lastmod,
+            'ETag': etag
+        })
+        return lastmod, etag
+
     async def __call__(self):
         content = await self.read()
         return self.respond(content)
@@ -115,6 +117,7 @@ class ProxyTile(Tile):
     def __init__(self, *args):
         path, executor, compresslevel, self.url, self.session, *rest = args
         super(ProxyTile, self).__init__(path, executor, compresslevel)
+        self.headers = get_headers(self.url)
         self.proxypass = self.makepass()
 
     def makepass(self):
@@ -146,21 +149,31 @@ class LazyTile(Tile):
     '''
 
     def __init__(self, *args):
-        path, executor, compresslevel, url, session, self.source = args
+        path, executor, compresslevel, *rest, self.source, self.key = args
         super(LazyTile, self).__init__(path, executor, compresslevel)
+        self.headers = get_headers(self.source.file)
         self.lazypass = self.makepass()
+        self.modified()
+
+    def modified(self):
+        lastmod, etag = get_lastmod_etag(self.source.file)
+        self.headers.update({
+            'Last-Modified': lastmod,
+            'ETag': etag
+        })
+        return lastmod, etag
 
     def makepass(self):
         if self.file is None:
             async def lazypass():
-                return await self.source()
+                return await self.source(self.key)
         else:
             async def lazypass():
                 try:
                     content = await self.read()
                     return content
                 except FileNotFoundError:
-                    content = await self.source()
+                    content = await self.source(self.key)
                     asyncio.ensure_future(self.write(content))
                     return content
         return lazypass
