@@ -40,7 +40,10 @@ class TileBeard:
     The adapter for serving a set of tiles.
     '''
 
-    def __init__(self, path='', url='', sourcefile='', template='/{}/{}/{}', frmt='png', compresslevel=0, max_workers=5, executor=None, session=None):
+    def __init__(self, path='', url='', sourcefile='',
+        template='/{}/{}/{}', frmt='png', compresslevel=0,
+        max_workers=5, executor=None, session=None):
+
         assert not (path is None and url is None and source is None)
         self.path = path
         self.url = url
@@ -116,9 +119,16 @@ class ClusterBeard:
     proxy urls by passing custom template arguments.
     '''
 
-    def __init__(self, sourcepath, tilepath='', compresslevel=0, max_workers=5, executor=None):
+    def __init__(self, sourcepath, tilepath='', compresslevel=0,
+        max_workers=5, executor=None, minzoom=0, maxzoom=18):
+
+        self.minzoom = minzoom
+        self.maxzoom = maxzoom
         self.sourcepath = sourcepath # formattable string to pass arguments to
-        self.tilepath = tilepath
+        if tilepath:
+            self.tilepath = tilepath + '/{}' * sourcepath.count('{}')
+        else:
+            self.tilepath = sourcepath + '/tiles'
         self.compresslevel = compresslevel
         if executor is None:
             self.executor = ThreadPoolExecutor(max_workers=max_workers)
@@ -126,9 +136,11 @@ class ClusterBeard:
             self.executor = executor
 
     async def __call__(self, key, request_headers={}, filter=None):
+        if not self.minzoom <= int(key[-3]) <= self.maxzoom:
+            return NOT_FOUND
         beard = TileBeard(
             sourcefile = self.sourcepath.format(*key[:-3]),
-            path = self.tilepath,
+            path = self.tilepath.format(*key[:-3]),
             compresslevel = self.compresslevel,
             executor = self.executor, # joint executor for all childbeards
         )
