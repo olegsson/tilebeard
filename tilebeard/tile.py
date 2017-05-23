@@ -50,6 +50,7 @@ class Tile:
 
     def __init__(self, *args):
         self.file, self.executor, compresslevel, *rest = args
+        self.headers = {}
         self.respond = self.makerespond(compresslevel)
 
     async def read(self):
@@ -93,7 +94,7 @@ class FileTile(Tile):
     '''
     def __init__(self, *args):
         super(FileTile, self).__init__(path, executor, compresslevel)
-        self.headers = get_headers(self.file)
+        self.headers.update(get_headers(self.file))
         self.modified()
 
     def modified(self):
@@ -116,7 +117,7 @@ class ProxyTile(Tile):
     def __init__(self, *args):
         path, executor, compresslevel, self.url, self.session, *rest = args
         super(ProxyTile, self).__init__(path, executor, compresslevel)
-        self.headers = get_headers(self.url)
+        self.headers.update(get_headers(self.url))
         self.proxypass = self.makepass()
 
     def makepass(self):
@@ -151,7 +152,7 @@ class LazyTile(Tile):
         path, executor, compresslevel, *rest, self.source, self.key = args
         super(LazyTile, self).__init__(path, executor, compresslevel)
         self.key = tuple(int(x) for x in self.key)
-        self.headers = get_headers(self.source.file)
+        self.headers.update(get_headers(self.source.file))
         self.lazypass = self.makepass()
         self.modified()
 
