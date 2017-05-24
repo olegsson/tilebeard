@@ -40,29 +40,35 @@ class TileBeard:
     The adapter for serving a set of tiles.
     '''
 
-    def __init__(self, path='', url='', sourcefile='',
+    def __init__(self, path='', url='', source='',
         template='/{}/{}/{}', frmt='png', compresslevel=0,
-        max_workers=5, executor=None, session=None):
+        max_workers=5, executor=None, session=None, minzoom=0,
+        maxzoom=18, **kwargs):
 
-        assert not (path is None and url is None and source is None)
+        assert not (not path and not url and not source) # bleh
         self.path = path
         self.url = url
         self.template = template
         self.format = frmt
+        self.template += '.' + self.format
+        self.compresslevel = compresslevel
+        self.session = session
+        self.tile = get_tile_type(path, url, source)
+        self.minzoom = minzoom
+        self.maxzoom = maxzoom
         if executor is None:
             self.executor = ThreadPoolExecutor(max_workers=max_workers)
         else:
             self.executor = executor
-        if sourcefile:
-            self.source = ImageSource(sourcefile, self.executor)
-            self.format = sourcefile.split('.')[-1].lower()
+        if source:
+            if type(source) == str: # TODO: implement vector source support here
+                self.source = ImageSource(source, self.executor)
+                self.format = source.split('.')[-1].lower()
+            else:
+                self.source = source(self.executor, self.session, **kwargs)
         else:
             self.source = None
             self.format = frmt
-        self.template += '.' + self.format
-        self.compresslevel = compresslevel
-        self.session = session
-        self.tile = get_tile_type(path, url, sourcefile)
         if path is not None:
             stars = '*' * template.count('{}')
             globstring = path + template.format(*stars)
@@ -143,6 +149,8 @@ class ClusterBeard:
             path = self.tilepath.format(*key[:-3]),
             compresslevel = self.compresslevel,
             executor = self.executor, # joint executor for all childbeards
+            minzoom = self.minzoom
+            maxzoom = self.maxzoom
         )
         return await beard(
             key[-3:],

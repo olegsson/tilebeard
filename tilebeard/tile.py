@@ -27,12 +27,11 @@ async def aioread(path, loop, executor):
 async def aiowrite(path, content, loop, executor):
     await loop.run_in_executor(executor, __writefile, path, content)
 
-def get_lastmod_etag(file):
-    timestamp = os.path.getmtime(file)
-    return (
-        format_date_time(timestamp),
-        str(round(100 * (timestamp % (3600 * 48)))) + ''.join(file.split(os.path.sep)[-3:])
-    )
+def get_etag_from_file(timestamp, file):
+    return str(round(100 * (timestamp % (3600 * 48)))) + ''.join(file.split(os.path.sep)[-3:])
+
+def get_etag_from_args(*args):
+    return ''.join([str(a) for a in args])
 
 def get_headers(string):
     ext = string.split('.')[-1].lower()
@@ -49,7 +48,7 @@ class Tile:
     '''
 
     def __init__(self, *args):
-        self.file, self.executor, compresslevel, *rest = args
+        self.file, self.executor, compresslevel, *__ = args
         self.headers = {}
         self.respond = self.makerespond(compresslevel)
 
@@ -98,10 +97,12 @@ class FileTile(Tile):
         self.modified()
 
     def modified(self):
-        lastmod, etag = get_lastmod_etag(self.file)
+        timestamp = os.path.getmtime(self.file)
+        lastmod = format_date_time(timestamp)
+        etag = get_etag_from_file(timestamp, self.file)
         self.headers.update({
             'Last-Modified': lastmod,
-            'ETag': etag
+            'ETag': etag,
         })
         return lastmod, etag
 
@@ -115,7 +116,7 @@ class ProxyTile(Tile):
     '''
 
     def __init__(self, *args):
-        path, executor, compresslevel, self.url, self.session, *rest = args
+        path, executor, compresslevel, self.url, self.session, *__ = args
         super(ProxyTile, self).__init__(path, executor, compresslevel)
         self.headers.update(get_headers(self.url))
         self.proxypass = self.makepass()
@@ -149,18 +150,20 @@ class LazyTile(Tile):
     '''
 
     def __init__(self, *args):
-        path, executor, compresslevel, *rest, self.source, self.key = args
+        path, executor, compresslevel, *__, self.source, self.key = args
         super(LazyTile, self).__init__(path, executor, compresslevel)
         self.key = tuple(int(x) for x in self.key)
-        self.headers.update(get_headers(self.source.file))
+        self.headers.update(get_headers(self.source.format))
         self.lazypass = self.makepass()
         self.modified()
 
     def modified(self):
-        lastmod, etag = get_lastmod_etag(self.source.file)
+        timestamp = self.source.modified()
+        lastmod = format_date_time(timestamp)
+        etag = get_etag_from_args(timestamp, *self.key)
         self.headers.update({
             'Last-Modified': lastmod,
-            'ETag': etag
+            'ETag': etag,
         })
         return lastmod, etag
 

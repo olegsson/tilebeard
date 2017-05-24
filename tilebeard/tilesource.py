@@ -86,17 +86,21 @@ class ImageSource:
         self.resample = resample
         self.file = imagefile
         self.executor = executor
+        self.format = 'PNG'
 
-    def get_tile(self, z, x, y):
-        box = num2box(z, x, y)
+    def get_tile(self, box):
         with Image.open(self.file) as image:
             world = get_world_data(self.file, image.size)
             bounds = box2pix(box, world)
             return image.crop(bounds).resize(self.tilesize, self.resample)
 
+    def modified(self):
+        return os.getmtime(self.file)
+
     async def __call__(self, z, x, y):
         loop = asyncio.get_event_loop()
         response = BytesIO()
-        tile = await loop.run_in_executor(self.executor, self.get_tile, z, x, y)
-        tile.save(response, format='PNG')
+        box = num2box(z, x, y)
+        tile = await loop.run_in_executor(self.executor, self.get_tile, box)
+        tile.save(response, format=self.format)
         return response.getvalue()
