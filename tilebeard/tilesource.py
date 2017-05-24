@@ -44,19 +44,13 @@ def box2pix(box, world):
     '''
     lonlat bounding box to pixel bounds of source image
     '''
-    left = math.floor(
-        (box[0] - world.E) / world.xres
+    left = (box[0] - world.E) / world.xres
+    upper = (world.N - box[3]) / world.yres
+    right = left + (box[2] - box[0]) / world.xres
+    lower = upper + (box[3] - box[1]) / world.yres
+    return tuple(
+        round(x) for x in (left, upper, right, lower)
     )
-    upper = math.floor(
-        (world.N - box[3]) / world.yres
-    )
-    right = left + math.ceil(
-        (box[2] - box[0]) / world.xres
-    )
-    lower = upper + math.ceil(
-        (box[3] - box[1]) / world.yres
-    )
-    return (left, upper, right, lower)
 
 def get_world_data(imagefile, imagesize):
     worldfile = imagefile[:-2]+imagefile[-1]+'w'
