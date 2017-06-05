@@ -135,7 +135,7 @@ class ClusterBeard:
         if tilepath:
             try:
                 count = source.count('{}')
-            except AttributeError:
+            except TypeError:
                 count = source.count
 
             self.tilepath = tilepath + '/{}' * count
