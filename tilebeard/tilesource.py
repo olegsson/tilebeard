@@ -1,8 +1,8 @@
-from sys import getsizeof
 import math
 from PIL import Image
 import asyncio
 from io import BytesIO
+import os
 
 class ObjDict(dict):
 
@@ -95,7 +95,7 @@ class ImageSource:
             return image.crop(bounds).resize(self.tilesize, self.resample)
 
     def modified(self):
-        return os.getmtime(self.file)
+        return os.path.getmtime(self.file)
 
     async def __call__(self, z, x, y):
         loop = asyncio.get_event_loop()
