@@ -65,7 +65,7 @@ class TileBeard:
                 self.source = ImageSource(source, self.executor)
                 self.format = source.split('.')[-1].lower()
             else:
-                self.source = source(self.executor, self.session, **kwargs)
+                self.source = source(**kwargs)
         else:
             self.source = None
             self.format = frmt
@@ -125,14 +125,20 @@ class ClusterBeard:
     proxy urls by passing custom template arguments.
     '''
 
-    def __init__(self, sourcepath, tilepath='', compresslevel=0,
-        max_workers=5, executor=None, minzoom=0, maxzoom=18):
+    def __init__(self, source, tilepath='', compresslevel=0,
+        max_workers=5, executor=None, minzoom=0, maxzoom=18, **kwargs):
 
         self.minzoom = minzoom
         self.maxzoom = maxzoom
-        self.sourcepath = sourcepath # formattable string to pass arguments to
+        self.source = source # formattable string or source class
+        self.sourceargs = kwargs
         if tilepath:
-            self.tilepath = tilepath + '/{}' * sourcepath.count('{}')
+            try:
+                count = source.count('{}')
+            except AttributeError:
+                count = source.count
+
+            self.tilepath = tilepath + '/{}' * count
         else:
             self.tilepath = sourcepath + '/tiles'
         self.compresslevel = compresslevel
@@ -144,13 +150,18 @@ class ClusterBeard:
     async def __call__(self, key, request_headers={}, filter=None):
         if not self.minzoom <= int(key[-3]) <= self.maxzoom:
             return NOT_FOUND
+        if type(self.source) == str:
+            source = self.source.format(*key[:-3])
+        else:
+            source = self.source
         beard = TileBeard(
-            sourcefile = self.sourcepath.format(*key[:-3]),
+            source = source,
             path = self.tilepath.format(*key[:-3]),
             compresslevel = self.compresslevel,
             executor = self.executor, # joint executor for all childbeards
-            minzoom = self.minzoom
-            maxzoom = self.maxzoom
+            minzoom = self.minzoom,
+            maxzoom = self.maxzoom,
+            **self.sourceargs
         )
         return await beard(
             key[-3:],
