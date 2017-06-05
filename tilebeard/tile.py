@@ -94,7 +94,7 @@ class FileTile(Tile):
     def __init__(self, *args):
         super(FileTile, self).__init__(path, executor, compresslevel)
         self.headers.update(get_headers(self.file))
-        self.modified()
+        asyncio.ensure_future(self.modified())
 
     async def modified(self):
         timestamp = os.path.getmtime(self.file)
@@ -155,7 +155,7 @@ class LazyTile(Tile):
         self.key = tuple(int(x) for x in self.key)
         self.headers.update(get_headers(self.source.format))
         self.lazypass = self.makepass()
-        self.modified()
+        asyncio.ensure_future(self.modified())
 
     async def modified(self):
         timestamp = await self.source.modified()

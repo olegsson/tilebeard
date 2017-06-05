@@ -43,7 +43,7 @@ class TileBeard:
     def __init__(self, path='', url='', source='',
         template='/{}/{}/{}', frmt='png', compresslevel=0,
         max_workers=5, executor=None, session=None, minzoom=0,
-        maxzoom=18, **kwargs):
+        maxzoom=18):
 
         assert not (not path and not url and not source) # bleh
         self.path = path
@@ -65,7 +65,7 @@ class TileBeard:
                 self.source = ImageSource(source, self.executor)
                 self.format = source.split('.')[-1].lower()
             else:
-                self.source = source(**kwargs)
+                self.source = source
         else:
             self.source = None
             self.format = frmt
@@ -126,12 +126,11 @@ class ClusterBeard:
     '''
 
     def __init__(self, source, tilepath='', compresslevel=0,
-        max_workers=5, executor=None, minzoom=0, maxzoom=18, **kwargs):
+        max_workers=5, executor=None, minzoom=0, maxzoom=18):
 
         self.minzoom = minzoom
         self.maxzoom = maxzoom
         self.source = source # formattable string or source class
-        self.sourceargs = kwargs
         if tilepath:
             try:
                 count = source.count('{}')
@@ -153,7 +152,7 @@ class ClusterBeard:
         if type(self.source) == str:
             source = self.source.format(*key[:-3])
         else:
-            source = self.source
+            source = self.source(*key[:-3])
         beard = TileBeard(
             source = source,
             path = self.tilepath.format(*key[:-3]),
@@ -161,7 +160,6 @@ class ClusterBeard:
             executor = self.executor, # joint executor for all childbeards
             minzoom = self.minzoom,
             maxzoom = self.maxzoom,
-            **self.sourceargs
         )
         return await beard(
             key[-3:],
