@@ -96,7 +96,7 @@ class FileTile(Tile):
         self.headers.update(get_headers(self.file))
         self.modified()
 
-    def modified(self):
+    async def modified(self):
         timestamp = os.path.getmtime(self.file)
         lastmod = format_date_time(timestamp)
         etag = get_etag_from_file(timestamp, self.file)
@@ -157,8 +157,8 @@ class LazyTile(Tile):
         self.lazypass = self.makepass()
         self.modified()
 
-    def modified(self):
-        timestamp = self.source.modified()
+    async def modified(self):
+        timestamp = await self.source.modified()
         lastmod = format_date_time(timestamp)
         etag = get_etag_from_args(timestamp, *self.key)
         self.headers.update({

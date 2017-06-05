@@ -100,7 +100,7 @@ class TileBeard:
             ]
 
             if check_headers != []:
-                checkvals = tile.modified() # NOTE: make this support ProxyTile
+                checkvals = await tile.modified() # NOTE: make this support ProxyTile
                 checks = [
                     request_headers[key] == checkvals[i] for i, key in enumerate(check_headers)
                 ]

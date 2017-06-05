@@ -94,7 +94,7 @@ class ImageSource:
             bounds = box2pix(box, world)
             return image.crop(bounds).resize(self.tilesize, self.resample)
 
-    def modified(self):
+    async def modified(self):
         return os.path.getmtime(self.file)
 
     async def __call__(self, z, x, y):
