@@ -63,12 +63,12 @@ class TileBeard:
         if source:
             if type(source) == str: # TODO: implement vector source support here
                 self.source = ImageSource(source, self.executor)
-                self.format = source.split('.')[-1].lower()
+                # self.format = source.split('.')[-1].lower()
             else:
                 self.source = source
         else:
             self.source = None
-            self.format = frmt
+            # self.format = frmt
         if path is not None:
             stars = '*' * template.count('{}')
             globstring = path + template.format(*stars)
@@ -87,6 +87,7 @@ class TileBeard:
         try:
             tile = self.tile(
                 path,
+                self.format,
                 self.executor,
                 self.compresslevel,
                 url,
@@ -125,12 +126,13 @@ class ClusterBeard:
     proxy urls by passing custom template arguments.
     '''
 
-    def __init__(self, source, tilepath='', compresslevel=0,
+    def __init__(self, source, frmt='png', tilepath='', compresslevel=0,
         max_workers=5, executor=None, minzoom=0, maxzoom=18):
 
         self.minzoom = minzoom
         self.maxzoom = maxzoom
         self.source = source # formattable string or source class
+        self.format = frmt
         if tilepath:
             try:
                 count = source.count('{}')
@@ -156,6 +158,7 @@ class ClusterBeard:
         beard = TileBeard(
             source = source,
             path = self.tilepath.format(*key[:-3]),
+            frmt = self.format,
             compresslevel = self.compresslevel,
             executor = self.executor, # joint executor for all childbeards
             minzoom = self.minzoom,

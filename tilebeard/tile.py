@@ -4,28 +4,44 @@ import asyncio
 from collections import OrderedDict
 from wsgiref.handlers import format_date_time
 
-MIMETYPES = OrderedDict({
+MIMETYPES = {
     'png': 'image/png',
     'jpg': 'image/jpeg',
     'jpeg': 'image/jpeg',
-    'json': 'application/json',
     'tif': 'image/tiff',
-    '': 'text/plain',
-})
+    'json': 'application/json',
+    'geojson': 'application/json',
+    'mvt': 'application/x-protobuf'
+}
 
-def __readfile(path):
-    with open(path, 'rb') as file:
+TEXT_FORMATS = [
+    'json',
+    'geojson',
+]
+
+DEFAULT_HEADERS = {
+    'Cache-Control': 'public',
+}
+
+
+def __readfile(path, mode):
+    with open(path, mode) as file:
         return file.read()
 
-def __writefile(path, content):
-    with open(path, 'wb') as file:
+def __writefile(path, content, mode):
+    with open(path, mode) as file:
         file.write(content)
 
-async def aioread(path, loop, executor):
-    return await loop.run_in_executor(executor, __readfile, path)
+def getmode(frmt):
+    if frmt in TEXT_FORMATS:
+        return 'r'
+    return 'rb'
 
-async def aiowrite(path, content, loop, executor):
-    await loop.run_in_executor(executor, __writefile, path, content)
+async def aioread(path, loop, executor, mode):
+    return await loop.run_in_executor(executor, __readfile, path, mode)
+
+async def aiowrite(path, content, loop, executor mode):
+    await loop.run_in_executor(executor, __writefile, path, content, mode)
 
 def get_etag_from_file(timestamp, file):
     return str(round(100 * (timestamp % (3600 * 48)))) + ''.join(file.split(os.path.sep)[-3:])
@@ -35,12 +51,10 @@ def get_etag_from_args(*args):
 
 def get_headers(string):
     ext = string.split('.')[-1].lower()
-    for key in MIMETYPES.keys():
-        if key in ext:
-            return {
-                'Content-Type': MIMETYPES[ext],
-                'Cache-Control': 'public',
-            }
+    return {
+        'Content-Type': MIMETYPES[ext],
+    }
+    return headers, __getmode(ext)
 
 class Tile:
     '''
@@ -48,20 +62,21 @@ class Tile:
     '''
 
     def __init__(self, *args):
-        self.file, self.executor, compresslevel, *__ = args
-        self.headers = {}
+        self.file, self.format, self.executor, compresslevel, *__ = args
+        self.headers = dict(DEFAULT_HEADERS)
+        self.mode = getmode(self.format)
         self.respond = self.makerespond(compresslevel)
 
     async def read(self):
         loop = asyncio.get_event_loop()
-        return await aioread(self.file, loop, self.executor)
+        return await aioread(self.file, loop, self.executor, self.mode)
 
     async def write(self, content):
         loop = asyncio.get_event_loop()
         dir = os.path.dirname(self.file)
         if not os.path.isdir(dir):
             os.makedirs(dir)
-        await aiowrite(self.file, content, loop, self.executor)
+        await aiowrite(self.file, content, loop, self.executor, self.mode)
 
     def makerespond(self, compresslevel):
         if 0 < compresslevel < 10:
@@ -92,7 +107,7 @@ class FileTile(Tile):
     Extends Tile class to a callable object that calls self.modified on init.
     '''
     def __init__(self, *args):
-        super(FileTile, self).__init__(path, executor, compresslevel)
+        super(FileTile, self).__init__(*args)
         self.headers.update(get_headers(self.file))
         asyncio.ensure_future(self.modified())
 
@@ -116,8 +131,8 @@ class ProxyTile(Tile):
     '''
 
     def __init__(self, *args):
-        path, executor, compresslevel, self.url, self.session, *__ = args
-        super(ProxyTile, self).__init__(path, executor, compresslevel)
+        path, frmt, executor, compresslevel, self.url, self.session, *__ = args
+        super(ProxyTile, self).__init__(path, frmt, executor, compresslevel)
         self.headers.update(get_headers(self.url))
         self.proxypass = self.makepass()
 
@@ -150,8 +165,8 @@ class LazyTile(Tile):
     '''
 
     def __init__(self, *args):
-        path, executor, compresslevel, *__, self.source, self.key = args
-        super(LazyTile, self).__init__(path, executor, compresslevel)
+        path, frmt, executor, compresslevel, *__, self.source, self.key = args
+        super(LazyTile, self).__init__(path, frmt, executor, compresslevel)
         self.key = tuple(int(x) for x in self.key)
         self.headers.update(get_headers(self.source.format))
         self.lazypass = self.makepass()
