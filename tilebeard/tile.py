@@ -1,7 +1,6 @@
 import os
 import gzip
 import asyncio
-from collections import OrderedDict
 from wsgiref.handlers import format_date_time
 
 MIMETYPES = {
@@ -40,7 +39,7 @@ def getmode(frmt):
 async def aioread(path, loop, executor, mode):
     return await loop.run_in_executor(executor, __readfile, path, mode)
 
-async def aiowrite(path, content, loop, executor mode):
+async def aiowrite(path, content, loop, executor, mode):
     await loop.run_in_executor(executor, __writefile, path, content, mode)
 
 def get_etag_from_file(timestamp, file):
