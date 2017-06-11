@@ -3,8 +3,7 @@ from PIL import ImageOps
 from tbutils import apply2bytes, constructable_filter, ObjDict
 
 # wrapper around some of PIL's ImageOps methods
-
-image_ops = {
+raster_ops = {
     imgop: apply2bytes(
         ImageOps.__dict__[imgop]
     ) for imgop in (
@@ -13,7 +12,7 @@ image_ops = {
     )
 }
 
-image_ops.update({
+raster_ops.update({
     imgop: constructable_filter(
         ImageOps.__dict__[imgop]
     ) for imgop in (
@@ -25,4 +24,4 @@ image_ops.update({
     )
 })
 
-image_ops = ObjDict(image_ops)
+raster_ops = ObjDict(raster_ops)
