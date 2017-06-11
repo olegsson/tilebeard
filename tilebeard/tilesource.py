@@ -3,46 +3,13 @@ from PIL import Image
 import asyncio
 from io import BytesIO
 import os
+import mercantile
 
-class ObjDict(dict):
-
-    def __init__(self, *args, **kwargs):
-        super(ObjDict, self).__init__(*args, **kwargs)
-        self.__dict__.update(*args, **kwargs)
-
-    def __setitem__(self, key, value):
-        super(ObjDict, self).__setitem__(key, value)
-        self.__dict__[key] = value
-
-    def update(self, other=None, **kwargs):
-        super(ObjDict, self).update(other, **kwargs)
-        if other is not None:
-            self.__dict__.update(other)
-        if kwargs != {}:
-            self.__dict__.update(kwargs)
-
-def num2deg(zoom, xtile, ytile):
-    '''
-    osm xyz tilename to coordinates
-    from http://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Python
-    '''
-    n = 2.0 ** zoom
-    lon_deg = xtile / n * 360.0 - 180.0
-    lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * ytile / n)))
-    lat_deg = math.degrees(lat_rad)
-    return (lon_deg, lat_deg)
-
-def num2box(zoom, xtile, ytile):
-    '''
-    tilename to bounding rectangle
-    '''
-    xe, yn = num2deg(zoom, xtile, ytile)
-    xw, ys = num2deg(zoom, xtile+1, ytile+1)
-    return (xe, ys, xw, yn)
+from tbutils import ObjDict
 
 def box2pix(box, world):
     '''
-    lonlat bounding box to pixel bounds of source image
+    bounding box to pixel bounds of source image
     '''
     left = (box[0] - world.E) / world.xres
     upper = (world.N - box[3]) / world.yres
@@ -53,6 +20,7 @@ def box2pix(box, world):
     )
 
 def get_world_data(imagefile, imagesize):
+    # TODO: implement support for skewed images...
     worldfile = imagefile[:-2]+imagefile[-1]+'w'
     with open(worldfile, 'r') as f:
         data = [float(x) for x in f.read().split('\n')]
@@ -76,21 +44,36 @@ def get_world_data(imagefile, imagesize):
         # 'box': (xe, ys, xw, yn),
     })
 
+def num2box(z, x, y, srid):
+    if srid == '4326':
+        return mercantile.bounds(x, y, z)
+    elif srid == '3857':
+        return mercantile.xy_bounds(x, y, z)
+    else:
+        raise ValueError('Invalid or unsupported SRID, please use 4326 or 3857')
+
+def check_if_intersect(box, world):
+    if box[0] > world.E or box[1] > world.N or box[2] < world.W or box[3] < world.S:
+        raise FileNotFoundError
+
 class ImageSource:
     '''
     Class for generating tiles on demand from image source.
     '''
 
-    def __init__(self, imagefile, executor, tilesize=(256, 256), resample=Image.BILINEAR):
+    def __init__(self, imagefile, executor, srid='3857',
+        frmt='PNG', tilesize=(256, 256), resample=Image.BILINEAR):
         self.tilesize = tilesize
         self.resample = resample
         self.file = imagefile
         self.executor = executor
-        self.format = 'PNG'
+        self.format = frmt
+        self.srid = srid
 
     def get_tile(self, box):
         with Image.open(self.file) as image:
             world = get_world_data(self.file, image.size)
+            check_if_intersect(box, world)
             bounds = box2pix(box, world)
             return image.crop(bounds).resize(self.tilesize, self.resample)
 
@@ -100,7 +83,7 @@ class ImageSource:
     async def __call__(self, z, x, y):
         loop = asyncio.get_event_loop()
         response = BytesIO()
-        box = num2box(z, x, y)
+        box = num2box(z, x, y, self.srid)
         tile = await loop.run_in_executor(self.executor, self.get_tile, box)
         tile.save(response, format=self.format)
         return response.getvalue()

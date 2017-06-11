@@ -10,12 +10,14 @@ MIMETYPES = {
     'tif': 'image/tiff',
     'json': 'application/json',
     'geojson': 'application/json',
+    'topojson': 'application/json',
     'mvt': 'application/x-protobuf'
 }
 
 TEXT_FORMATS = [
     'json',
     'geojson',
+    'topojson',
 ]
 
 DEFAULT_HEADERS = {

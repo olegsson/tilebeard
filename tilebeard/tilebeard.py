@@ -43,9 +43,11 @@ class TileBeard:
     def __init__(self, path='', url='', source='',
         template='/{}/{}/{}', frmt='png', compresslevel=0,
         max_workers=5, executor=None, session=None, minzoom=0,
-        maxzoom=18):
+        maxzoom=18, **source_kwargs):
 
-        assert not (not path and not url and not source) # bleh
+        if not path and not url and not source:
+            raise ValueError('No path, url, or source object specified.')
+
         self.path = path
         self.url = url
         self.template = template
@@ -56,19 +58,18 @@ class TileBeard:
         self.tile = get_tile_type(path, url, source)
         self.minzoom = minzoom
         self.maxzoom = maxzoom
+        self.source_kwargs = source_kwargs
         if executor is None:
             self.executor = ThreadPoolExecutor(max_workers=max_workers)
         else:
             self.executor = executor
         if source:
             if type(source) == str: # TODO: implement vector source support here
-                self.source = ImageSource(source, self.executor)
-                # self.format = source.split('.')[-1].lower()
+                self.source = ImageSource(source, self.executor, **self.source_kwargs)
             else:
                 self.source = source
         else:
             self.source = None
-            # self.format = frmt
         if path is not None:
             stars = '*' * template.count('{}')
             globstring = path + template.format(*stars)
@@ -127,17 +128,18 @@ class ClusterBeard:
     '''
 
     def __init__(self, source, frmt='png', tilepath='', compresslevel=0,
-        max_workers=5, executor=None, minzoom=0, maxzoom=18):
+        max_workers=5, executor=None, minzoom=0, maxzoom=18, **source_kwargs):
 
         self.minzoom = minzoom
         self.maxzoom = maxzoom
         self.source = source # formattable string or source class
         self.format = frmt
+        self.source_kwargs = source_kwargs
         if tilepath:
             try:
                 count = source.count('{}')
             except TypeError:
-                count = source.count
+                count = source.argnum
 
             self.tilepath = tilepath + '/{}' * count
         else:
@@ -154,7 +156,7 @@ class ClusterBeard:
         if type(self.source) == str:
             source = self.source.format(*key[:-3])
         else:
-            source = self.source(*key[:-3])
+            source = self.source(*key[:-3], **self.source_kwargs)
         beard = TileBeard(
             source = source,
             path = self.tilepath.format(*key[:-3]),
@@ -163,6 +165,7 @@ class ClusterBeard:
             executor = self.executor, # joint executor for all childbeards
             minzoom = self.minzoom,
             maxzoom = self.maxzoom,
+            **self.source_kwargs
         )
         return await beard(
             key[-3:],
