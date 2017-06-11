@@ -26,7 +26,7 @@ mercantile (for CRS operations)
 #### TileBeard
 
 ```
-tiles = TileBeard(self, path='', url='', source='',
+tiles = TileBeard(path='', url='', source='',
         template='/{}/{}/{}', frmt='png', compresslevel=0,
         max_workers=5, executor=None, session=None, minzoom=0,
         maxzoom=18, **source_kwargs)
@@ -59,13 +59,39 @@ tiles = TileBeard(
 )
 ```
 
+#### ClusterBeard
+
+```
+tiles = ClusterBeard(source, frmt='png', tilepath='', compresslevel=0,
+    max_workers=5, executor=None, minzoom=0, maxzoom=18, **source_kwargs)
+```
+
+The ClusterBeard class is meant for serving multiple layers of dynamically generated tiles.
+Its `source` argument can either be a formattable string (to be evaluated on call) or a custom tilesource class.
+
 ### getting tiles
 ```
-status_code, headers, content = await tiles(key, [request_headers])
+status_code, headers, content = await tiles(key, request_headers={}, filter=None)
 ```
-`key` should be a tuple of parameters (eg. `(z, x, y)` or `(layer, z, x, y)`), conforming to template format
+`key` should be a tuple of parameters (eg. `(z, x, y)` or `(layer, z, x, y)`), conforming to template format.
+In ClusterBeard's case, all members of `key` other than the last three (x, y, z) are used to format the source string or are passed to a custom source class' constructor.
 
-if `request_headers` (dict) is passed to the call, tilebeard returns `304 Not Modified` response when appropriate
+If `request_headers` (dict) is passed to the call, tilebeard returns `304 Not Modified` response when appropriate.
+
+#### filters
+TileBeard supports filters for on-demand modification of tiles.
+The package currently only contains wrappers around some `PIL.ImageOps` methods (mostly all that preserve image resolution) but theoretically any function that takes a bytestring (or utf8 string for text formats like GeoJSON) can be implemented as a filter.
+
+```
+from tilebeard.filters import raster_ops
+
+status_code, headers, content = await tiles(key, filter=raster_ops.invert)
+```
+or in case of `PIL.ImageOps` methods that take additional arguments:
+```
+filter = raster_ops.posterize(bits=4)
+status_code, headers, content = await tiles(key, filter=filter)
+```
 
 ## license
 

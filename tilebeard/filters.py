@@ -9,6 +9,8 @@ raster_ops = {
     ) for imgop in (
         'invert',
         'grayscale',
+        'flip',
+        'mirror',
     )
 }
 
