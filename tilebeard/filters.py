@@ -1,6 +1,6 @@
 from PIL import ImageOps
 
-from tbutils import apply2bytes, constructable_filter, ObjDict
+from .tbutils import apply2bytes, constructable_filter, ObjDict
 
 # wrapper around some of PIL's ImageOps methods
 raster_ops = {

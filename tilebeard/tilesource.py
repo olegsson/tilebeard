@@ -5,13 +5,13 @@ from io import BytesIO
 import os
 import mercantile
 
-from tbutils import ObjDict
+from .tbutils import ObjDict
 
 def box2pix(box, world):
     '''
     bounding box to pixel bounds of source image
     '''
-    left = (box[0] - world.E) / world.xres
+    left = (box[0] - world.W) / world.xres
     upper = (world.N - box[3]) / world.yres
     right = left + (box[2] - box[0]) / world.xres
     lower = upper + (box[3] - box[1]) / world.yres
@@ -28,9 +28,9 @@ def get_world_data(imagefile, imagesize):
     yres = -data[3]
     w = xres * imagesize[0]
     h = yres * imagesize[1]
-    xe = data[4]
+    xw = data[4]
     yn = data[5]
-    xw = xe + w
+    xe = xw + w
     ys = yn - h
     return ObjDict({
         'xres': xres,
@@ -75,6 +75,7 @@ class ImageSource:
             world = get_world_data(self.file, image.size)
             check_if_intersect(box, world)
             bounds = box2pix(box, world)
+            print(bounds)
             return image.crop(bounds).resize(self.tilesize, self.resample)
 
     async def modified(self):
@@ -83,7 +84,7 @@ class ImageSource:
     async def __call__(self, z, x, y):
         loop = asyncio.get_event_loop()
         response = BytesIO()
-        box = num2box(z, x, y, self.srid)
+        box = list(num2box(z, x, y, self.srid))
         tile = await loop.run_in_executor(self.executor, self.get_tile, box)
         tile.save(response, format=self.format)
         return response.getvalue()
