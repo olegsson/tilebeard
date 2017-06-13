@@ -45,3 +45,6 @@ class ObjDict(dict):
             self.__dict__.update(other)
         if kwargs != {}:
             self.__dict__.update(kwargs)
+
+class TileNotFound(Exception):
+    pass

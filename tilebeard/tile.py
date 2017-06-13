@@ -3,6 +3,8 @@ import gzip
 import asyncio
 from wsgiref.handlers import format_date_time
 
+from .tbutils import TileNotFound
+
 MIMETYPES = {
     'png': 'image/png',
     'jpg': 'image/jpeg',
@@ -26,17 +28,17 @@ DEFAULT_HEADERS = {
 
 
 def __readfile(path, mode):
-    with open(path, mode) as file:
+    with open(path, 'r'+mode) as file:
         return file.read()
 
 def __writefile(path, content, mode):
-    with open(path, mode) as file:
+    with open(path, 'w'+mode) as file:
         file.write(content)
 
 def getmode(frmt):
     if frmt in TEXT_FORMATS:
-        return 'r'
-    return 'rb'
+        return ''
+    return 'b'
 
 async def aioread(path, loop, executor, mode):
     return await loop.run_in_executor(executor, __readfile, path, mode)
@@ -142,7 +144,7 @@ class ProxyTile(Tile):
             async def proxypass():
                 async with self.session.get(self.url) as response:
                     if response.status == 404:
-                        raise FileNotFoundError
+                        raise TileNotFound
                     return await response.read()
         else:
             async def proxypass():
@@ -152,7 +154,7 @@ class ProxyTile(Tile):
                 except FileNotFoundError:
                     async with self.session.get(self.url) as response:
                         content = await response.read()
-                    asyncio.ensure_future(self.write(content))
+                    await self.write(content)
                     return content
         return proxypass
 
@@ -194,7 +196,7 @@ class LazyTile(Tile):
                     return content
                 except FileNotFoundError:
                     content = await self.source(*self.key)
-                    asyncio.ensure_future(self.write(content))
+                    await self.write(content)
                     return content
         return lazypass
 

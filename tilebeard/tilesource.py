@@ -5,7 +5,7 @@ from io import BytesIO
 import os
 import mercantile
 
-from .tbutils import ObjDict
+from .tbutils import ObjDict, TileNotFound
 
 def box2pix(box, world):
     '''
@@ -54,7 +54,7 @@ def num2box(z, x, y, srid):
 
 def check_if_intersect(box, world):
     if box[0] > world.E or box[1] > world.N or box[2] < world.W or box[3] < world.S:
-        raise FileNotFoundError
+        raise TileNotFound
 
 class ImageSource:
     '''

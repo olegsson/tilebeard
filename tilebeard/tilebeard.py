@@ -3,14 +3,10 @@ from glob import iglob
 import asyncio
 from aiohttp import ClientSession
 from concurrent.futures import ThreadPoolExecutor
+
 from .tile import FileTile, ProxyTile, LazyTile
 from .tilesource import ImageSource
-
-# NOTE: removing this, filters should be passed as functions for pluggability
-# from .filters import *
-# _filters = {
-#     'invert': invert
-# }
+from .tbutils import TileNotFound
 
 NOT_FOUND = (
     404,
@@ -116,7 +112,7 @@ class TileBeard:
 
             return response
 
-        except FileNotFoundError:
+        except TileNotFound:
             return NOT_FOUND
 
 class ClusterBeard:
@@ -138,7 +134,7 @@ class ClusterBeard:
         if tilepath:
             try:
                 count = source.count('{}')
-            except TypeError:
+            except AttributeError:
                 count = source.argnum
 
             self.tilepath = tilepath + '/{}' * count
