@@ -13,7 +13,8 @@ MIMETYPES = {
     'json': 'application/json',
     'geojson': 'application/json',
     'topojson': 'application/json',
-    'mvt': 'application/x-protobuf'
+    'mvt': 'application/x-protobuf',
+    'pbf': 'application/x-protobuf',
 }
 
 TEXT_FORMATS = [
