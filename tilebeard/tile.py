@@ -78,8 +78,10 @@ class Tile:
     async def write(self, content):
         loop = asyncio.get_event_loop()
         dir = os.path.dirname(self.file)
-        if not os.path.isdir(dir):
+        try:
             os.makedirs(dir)
+        except FileExistsError:
+            pass
         await aiowrite(self.file, content, loop, self.executor, self.mode)
 
     def makerespond(self, compresslevel):
