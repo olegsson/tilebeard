@@ -52,7 +52,7 @@ class ImageSource:
     Class for generating tiles on demand from image source.
     '''
 
-    def __init__(self, imagefile, executor, srid='3857',
+    def __init__(self, imagefile, executor, srid='4326',
         frmt='PNG', tilesize=(256, 256), resample=Image.BILINEAR):
         self.tilesize = tilesize
         self.resample = resample
