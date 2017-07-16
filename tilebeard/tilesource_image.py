@@ -3,9 +3,8 @@ from PIL import Image
 import asyncio
 from io import BytesIO
 import os
-import mercantile
 
-from .tbutils import ObjDict, TileNotFound
+from .tbutils import ObjDict, TileNotFound, num2box
 
 def box2pix(box, world):
     '''
@@ -44,14 +43,6 @@ def get_world_data(imagefile, imagesize):
         # 'box': (xe, ys, xw, yn),
     })
 
-def num2box(z, x, y, srid):
-    if srid == '4326':
-        return mercantile.bounds(x, y, z)
-    elif srid == '3857':
-        return mercantile.xy_bounds(x, y, z)
-    else:
-        raise ValueError('Invalid or unsupported SRID, please use 4326 or 3857')
-
 def check_if_intersect(box, world):
     if box[0] > world.E or box[1] > world.N or box[2] < world.W or box[3] < world.S:
         raise TileNotFound
@@ -70,15 +61,15 @@ class ImageSource:
         self.format = frmt
         self.srid = srid
 
+    async def modified(self):
+        return os.path.getmtime(self.file)
+
     def get_tile(self, box):
         with Image.open(self.file) as image:
             world = get_world_data(self.file, image.size)
             check_if_intersect(box, world)
             bounds = box2pix(box, world)
             return image.crop(bounds).resize(self.tilesize, self.resample)
-
-    async def modified(self):
-        return os.path.getmtime(self.file)
 
     async def __call__(self, z, x, y):
         loop = asyncio.get_event_loop()

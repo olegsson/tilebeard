@@ -5,7 +5,7 @@ from aiohttp import ClientSession
 from concurrent.futures import ThreadPoolExecutor
 
 from .tile import FileTile, ProxyTile, LazyTile
-from .tilesource import ImageSource
+from .tilesource_image import ImageSource
 from .tbutils import TileNotFound
 
 NOT_FOUND = (
