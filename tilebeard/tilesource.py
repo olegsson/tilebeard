@@ -75,7 +75,6 @@ class ImageSource:
             world = get_world_data(self.file, image.size)
             check_if_intersect(box, world)
             bounds = box2pix(box, world)
-            print(bounds)
             return image.crop(bounds).resize(self.tilesize, self.resample)
 
     async def modified(self):

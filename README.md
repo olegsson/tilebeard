@@ -7,7 +7,7 @@ Largely inspired by [TileStache](https://github.com/TileStache/TileStache)
 ## installation
 
 Install requirements, then:
-`git clone` and `python setup.py install`
+`git clone` and `python setup.py install` or `pip install tilebeard`
 
 #### requirements
 
