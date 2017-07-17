@@ -49,11 +49,3 @@ class ObjDict(dict):
 
 class TileNotFound(Exception):
     pass
-
-def num2box(z, x, y, srid='4326'):
-    if srid == '4326':
-        return mercantile.bounds(x, y, z)
-    elif srid == '3857':
-        return mercantile.xy_bounds(x, y, z)
-    else:
-        raise ValueError('Invalid or unsupported SRID, please use 4326 or 3857')

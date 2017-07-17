@@ -5,7 +5,7 @@ from aiohttp import ClientSession
 from concurrent.futures import ThreadPoolExecutor
 
 from .tile import FileTile, ProxyTile, LazyTile
-from .tilesource_image import ImageSource
+from .tilesource import ImageSource, VectorSource
 from .tbutils import TileNotFound
 
 NOT_FOUND = (
@@ -30,6 +30,18 @@ def get_tile_type(path, url, source): # graceful as a drunk bear...
     }
     key = (not path, not url, not source)
     return types[key]
+
+VECTOR_TYPES = (
+    '.shp',
+    '.geojson',
+    '.json',
+)
+
+def get_source_constructor(source):
+    for v in VECTOR_TYPES:
+        if source.endswith(v):
+            return VectorSource
+    return ImageSource
 
 class TileBeard:
     '''
@@ -61,7 +73,7 @@ class TileBeard:
             self.executor = executor
         if source:
             if type(source) == str: # TODO: implement vector source support here
-                self.source = ImageSource(source, self.executor, **self.source_kwargs)
+                self.source = get_source_constructor(source)(source, self.executor, **self.source_kwargs)
             else:
                 self.source = source
         else:
