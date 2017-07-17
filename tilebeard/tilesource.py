@@ -99,6 +99,7 @@ class VectorSource:
     '''
 
     def __init__(self, vectorfile, executor, srid='4326'):
+        self.format = 'geojson'
         self.file = vectorfile
         self.executor = executor
         self.srid = srid
@@ -110,7 +111,7 @@ class VectorSource:
         features = []
         with fiona.open(self.file, 'r') as cake:
             for feat in cake:
-                cut = shp.shape(feat).geometry.intersection(box)
+                cut = shp.shape(feat['geometry']).intersection(box)
                 if cut.is_empty:
                     continue
                 feat['geometry'] = shp.mapping(cut)

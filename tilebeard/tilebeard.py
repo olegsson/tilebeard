@@ -90,8 +90,14 @@ class TileBeard:
     async def __call__(self, key, request_headers={}, filter=None):
         if self.session is None and self.url is not None:
             self.session = ClientSession()
-        path = self.path + self.template.format(*key)
-        url = self.url + self.template.format(*key)
+        if self.path:
+            path = self.path + self.template.format(*key)
+        else:
+            path = None
+        if self.url:
+            url = self.url + self.template.format(*key)
+        else:
+            url = None
 
         try:
             tile = self.tile(
