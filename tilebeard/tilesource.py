@@ -109,7 +109,7 @@ class VectorSource:
     '''
 
     def __init__(self, vectorfile, executor,
-        srid='4326', relative_tolerance=.02,
+        srid='4326', relative_tolerance=.0005,
         preserve_topology=True):
         self.format = 'geojson'
         self.file = vectorfile
