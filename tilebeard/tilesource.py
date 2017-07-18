@@ -93,28 +93,45 @@ class ImageSource:
         tile.save(response, format=self.format)
         return response.getvalue()
 
+def get_simplify_tolerance(box, relative_tolerance):
+    '''
+    returns distance passed to shapely.geometry.simplify
+    '''
+    diagonal = math.sqrt(
+        (box[2] - box[0])**2 + (box[3] - box[1])**2
+    )
+    return diagonal * relative_tolerance
+
 class VectorSource:
     '''
     Class for generating tiles on demand from vector source.
     '''
 
-    def __init__(self, vectorfile, executor, srid='4326'):
+    def __init__(self, vectorfile, executor,
+        srid='4326', relative_tolerance=.02,
+        preserve_topology=True):
         self.format = 'geojson'
         self.file = vectorfile
         self.executor = executor
         self.srid = srid
+        self.relative_tolerance = relative_tolerance
+        self.preserve_topology = preserve_topology
 
     async def modified(self):
         return os.path.getmtime(self.file)
 
     def get_tile(self, box):
         features = []
+        geobox = shp.box(*box)
+        tolerance = get_simplify_tolerance(box, self.relative_tolerance)
         with fiona.open(self.file, 'r') as cake:
             for feat in cake:
-                cut = shp.shape(feat['geometry']).intersection(box)
+                cut = shp.shape(feat['geometry']).intersection(geobox)
                 if cut.is_empty:
                     continue
-                feat['geometry'] = shp.mapping(cut)
+                feat['geometry'] = shp.mapping(
+                    cut.simplify(tolerance, self.preserve_topology)
+                )
                 features.append(feat)
         return {
             'type': 'FeatureCollection',
@@ -123,6 +140,6 @@ class VectorSource:
 
     async def __call__(self, z, x, y):
         loop = asyncio.get_event_loop()
-        box = shp.box(*num2box(z, x, y, self.srid))
+        box = num2box(z, x, y, self.srid)
         tile = await loop.run_in_executor(self.executor, self.get_tile, box)
         return tile

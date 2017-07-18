@@ -17,6 +17,8 @@ aiohttp (for async requests in proxy mode)
 
 Pillow (for dynamic tile generation from a source image and applying filters to output on-demand)
 
+fiona, shapely (for parsing vector files)
+
 mercantile (for CRS operations)
 
 ## usage
@@ -58,6 +60,7 @@ tiles = TileBeard(
     source='/path/to/source/image.tif'
 )
 ```
+TileBeard's builtin source classes currently support GeoJSON and shapefiles, as well as any and all image formats that Pillow supports.
 
 #### ClusterBeard
 
@@ -99,7 +102,6 @@ status_code, headers, content = await tiles(key, filter=filter)
 
 ## future
 
-* vector tilesource and filters
 * proper exception handling
 * .mbtiles support
 * possibly PostGIS support
