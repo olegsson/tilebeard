@@ -19,6 +19,8 @@ Pillow (for dynamic tile generation from a source image and applying filters to 
 
 fiona, shapely (for parsing vector files)
 
+ujson (for geojson vectortile output)
+
 mercantile (for CRS operations)
 
 ## usage

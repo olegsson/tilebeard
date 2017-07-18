@@ -9,6 +9,7 @@ from shapely import speedups
 if speedups.available:
     speedups.enable()
 from shapely import geometry as shp
+import ujson
 
 from .tbutils import ObjDict, TileNotFound
 
@@ -142,4 +143,4 @@ class VectorSource:
         loop = asyncio.get_event_loop()
         box = num2box(z, x, y, self.srid)
         tile = await loop.run_in_executor(self.executor, self.get_tile, box)
-        return tile
+        return ujson.dumps(tile)
