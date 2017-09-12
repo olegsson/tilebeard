@@ -62,6 +62,16 @@ def check_if_intersect(box, world):
     if box[0] > world.E or box[1] > world.N or box[2] < world.W or box[3] < world.S:
         raise TileNotFound
 
+def bufferize(box, buffer):
+    xbuffer = (box[2] - box[0]) * buffer
+    ybuffer = (box[3] - box[1]) * buffer
+    return (
+        box[0] - xbuffer,
+        box[1] - ybuffer,
+        box[2] + xbuffer,
+        box[3] + ybuffer,
+    )
+
 class ImageSource:
     '''
     Class for generating tiles on demand from image source.
@@ -109,12 +119,13 @@ class VectorSource:
     '''
 
     def __init__(self, vectorfile, executor,
-        srid='4326', relative_tolerance=.0005,
+        srid='4326', buffer=0, relative_tolerance=.0005,
         preserve_topology=True):
         self.format = 'geojson'
         self.file = vectorfile
         self.executor = executor
         self.srid = srid
+        self.buffer = buffer
         self.relative_tolerance = relative_tolerance
         self.preserve_topology = preserve_topology
 
@@ -123,7 +134,9 @@ class VectorSource:
 
     def get_tile(self, box):
         features = []
-        geobox = shp.box(*box)
+        geobox = shp.box(
+            *bufferize(box, self.buffer)
+        )
         tolerance = get_simplify_tolerance(box, self.relative_tolerance)
         with fiona.open(self.file, 'r') as cake:
             for feat in cake:
