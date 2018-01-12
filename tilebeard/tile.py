@@ -2,6 +2,7 @@ import os
 import gzip
 import asyncio
 from wsgiref.handlers import format_date_time
+import aiohttp
 
 from .tbutils import TileNotFound
 
@@ -155,8 +156,12 @@ class ProxyTile(Tile):
                     content = await self.read()
                     return content
                 except FileNotFoundError:
-                    async with self.session.get(self.url) as response:
-                        content = await response.read()
+                    if self.session is None:
+                        async with aiohttp.request('GET', self.url) as response:
+                            content = await response.read()
+                    else:
+                        async with self.session.get(self.url) as response:
+                            content = await response.read()
                     await self.write(content)
                     return content
         return proxypass

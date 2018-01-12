@@ -1,7 +1,6 @@
 import re
 from glob import iglob
 import asyncio
-from aiohttp import ClientSession
 from concurrent.futures import ThreadPoolExecutor
 
 from .tile import FileTile, ProxyTile, LazyTile
@@ -88,8 +87,6 @@ class TileBeard:
                 return c
 
     async def __call__(self, key, request_headers={}, filter=None):
-        if self.session is None and self.url is not None:
-            self.session = ClientSession()
         if self.path:
             path = self.path + self.template.format(*key)
         else:
