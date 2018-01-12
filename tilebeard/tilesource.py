@@ -72,6 +72,32 @@ def bufferize(box, buffer):
         box[3] + ybuffer,
     )
 
+def crop(image, bounds):
+    '''
+    faster crop for uncompressed images
+    '''
+    if image.tile[0][0] == 'raw':
+        iw, ih = image.size
+        offset = image.tile[0][2]
+
+        x = bounds[0]
+        y = bounds[1]
+        w = bounds[2] - x
+        h = bounds[3] - y
+        hcorr = min(h, ih-y)
+
+        image.size = (iw, hcorr)
+        image.tile = [
+            (
+                'raw',
+                (0, 0, iw, hcorr),
+                offset + 4 * iw * y,
+                ('RGBA', 0, 1),
+            )
+        ]
+        return image.crop((x, 0, x+w, h))
+    return image.crop(bounds)
+
 class ImageSource:
     '''
     Class for generating tiles on demand from image source.
@@ -94,7 +120,7 @@ class ImageSource:
             world = get_world_data(self.file, image.size)
             check_if_intersect(box, world)
             bounds = box2pix(box, world)
-            return image.crop(bounds).resize(self.tilesize, self.resample)
+            return crop(image, bounds).resize(self.tilesize, self.resample)
 
     async def __call__(self, z, x, y):
         loop = asyncio.get_event_loop()
