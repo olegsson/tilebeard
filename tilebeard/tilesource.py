@@ -83,6 +83,7 @@ def crop(imagefile, box):
         bounds = box2pix(box, world)
 
         if image.tile[0][0] == 'raw':
+
             iw, ih = image.size
             offset = image.tile[0][2]
 
@@ -94,10 +95,17 @@ def crop(imagefile, box):
             h = y1 - y
             hcorr = min(h, ih-abs(y))
 
-            with open(imagefile, 'rb') as f:
-                f.seek(offset+4*iw*max(0, y))
-                ibytes = f.read(4*iw*hcorr)
-            return Image.frombytes('RGBA', (iw, hcorr), ibytes).crop((x, min(0, y), x1, min(h, y1)))
+            image.size = (iw, hcorr)
+            image.tile = [
+                (
+                    'raw',
+                    (0, 0, iw, hcorr),
+                    offset + 4 * iw * max(0, y),
+                    ('RGBA', 0, 1),
+                )
+            ]
+            return image.crop((x, min(0, y), x+w, min(h, y1)))
+
         return image.crop(bounds)
 
 class ImageSource:
