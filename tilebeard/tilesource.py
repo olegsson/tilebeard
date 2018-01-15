@@ -72,31 +72,33 @@ def bufferize(box, buffer):
         box[3] + ybuffer,
     )
 
-def crop(image, bounds):
+def crop(imagefile, box):
     '''
     faster crop for uncompressed images
     '''
-    if False: #image.tile[0][0] == 'raw': # hotfix
-        iw, ih = image.size
-        offset = image.tile[0][2]
+    with Image.open(imagefile) as image:
 
-        x = bounds[0]
-        y = bounds[1]
-        w = bounds[2] - x
-        h = bounds[3] - y
-        hcorr = min(h, ih-y)
+        world = get_world_data(imagefile, image.size)
+        check_if_intersect(box, world)
+        bounds = box2pix(box, world)
 
-        image.size = (iw, hcorr)
-        image.tile = [
-            (
-                'raw',
-                (0, 0, iw, hcorr),
-                offset + 4 * iw * y,
-                ('RGBA', 0, 1),
-            )
-        ]
-        return image.crop((x, 0, x+w, h))
-    return image.crop(bounds)
+        if image.tile[0][0] == 'raw':
+            iw, ih = image.size
+            offset = image.tile[0][2]
+
+            x = bounds[0]
+            y = bounds[1]
+            x1 = bounds[2]
+            y1 = bounds[3]
+            w = x1 - x
+            h = y1 - y
+            hcorr = min(h, ih-abs(y))
+
+            with open(imagefile, 'rb') as f:
+                f.seek(offset+4*iw*max(0, y))
+                ibytes = f.read(4*iw*hcorr)
+            return Image.frombytes('RGBA', (iw, hcorr), ibytes).crop((x, min(0, y), x1, min(h, y1)))
+        return image.crop(bounds)
 
 class ImageSource:
     '''
@@ -116,11 +118,7 @@ class ImageSource:
         return os.path.getmtime(self.file)
 
     def get_tile(self, box):
-        with Image.open(self.file) as image:
-            world = get_world_data(self.file, image.size)
-            check_if_intersect(box, world)
-            bounds = box2pix(box, world)
-            return crop(image, bounds).resize(self.tilesize, self.resample)
+        return crop(self.file, box).resize(self.tilesize, self.resample)
 
     async def __call__(self, z, x, y):
         loop = asyncio.get_event_loop()
