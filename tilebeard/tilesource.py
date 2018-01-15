@@ -76,7 +76,7 @@ def crop(image, bounds):
     '''
     faster crop for uncompressed images
     '''
-    if image.tile[0][0] == 'raw':
+    if False: #image.tile[0][0] == 'raw': # hotfix
         iw, ih = image.size
         offset = image.tile[0][2]
 
